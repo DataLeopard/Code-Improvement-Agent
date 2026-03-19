@@ -27,7 +27,7 @@ class StructureAnalyzer(BaseAnalyzer):
         root_files = [f for f in files if os.sep not in f and "/" not in f]
         code_files = [f for f in root_files if f.endswith((".py", ".js", ".ts", ".go", ".rs", ".java"))]
 
-        if len(code_files) > 5:
+        if len(code_files) > self.config.structure["root_file_threshold"]:
             result.findings.append(self._make_finding(
                 file="(repo root)",
                 severity="high",
@@ -63,7 +63,7 @@ class StructureAnalyzer(BaseAnalyzer):
                 if dirname == "(root)":
                     root_mix.add(cat)
 
-        if len(root_mix) >= 3:
+        if len(root_mix) >= self.config.structure["mixed_concern_threshold"]:
             result.findings.append(self._make_finding(
                 file="(repo root)",
                 severity="medium",

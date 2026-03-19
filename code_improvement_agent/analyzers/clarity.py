@@ -26,7 +26,7 @@ class ClarityAnalyzer(BaseAnalyzer):
         """Check for poor variable/function names."""
         # Single-letter variables (except loop vars i, j, k, x, y)
         pattern = r'\b([a-z])\s*='
-        allowed = set("ijkxynmfe_")
+        allowed = set(self.config.clarity["allowed_single_letter_vars"])
 
         for i, line in enumerate(content.split("\n"), 1):
             if line.strip().startswith("#") or line.strip().startswith("def "):
@@ -44,7 +44,8 @@ class ClarityAnalyzer(BaseAnalyzer):
                 ))
 
     def _check_function_length(self, filepath: str, content: str, result: AnalyzerResult):
-        """Flag functions longer than 50 lines."""
+        """Flag functions longer than the configured line limit."""
+        max_lines = self.config.clarity["max_function_lines"]
         lines = content.split("\n")
         func_start = None
         func_name = None
@@ -56,12 +57,12 @@ class ClarityAnalyzer(BaseAnalyzer):
                 # Check if previous function was too long
                 if func_start is not None:
                     length = i - func_start
-                    if length > 50:
+                    if length > max_lines:
                         result.findings.append(self._make_finding(
                             file=filepath,
                             severity="medium",
                             title=f"Long function: {func_name}() ({length} lines)",
-                            description=f"Functions over 50 lines are harder to understand and test.",
+                            description=f"Functions over {max_lines} lines are harder to understand and test.",
                             suggestion="Break into smaller, focused helper functions.",
                             line=func_start + 1,
                         ))
@@ -72,12 +73,12 @@ class ClarityAnalyzer(BaseAnalyzer):
         # Check last function
         if func_start is not None:
             length = len(lines) - func_start
-            if length > 50:
+            if length > max_lines:
                 result.findings.append(self._make_finding(
                     file=filepath,
                     severity="medium",
                     title=f"Long function: {func_name}() ({length} lines)",
-                    description=f"Functions over 50 lines are harder to understand and test.",
+                    description=f"Functions over {max_lines} lines are harder to understand and test.",
                     suggestion="Break into smaller, focused helper functions.",
                     line=func_start + 1,
                 ))
@@ -116,19 +117,22 @@ class ClarityAnalyzer(BaseAnalyzer):
         if "config" in filepath.lower():
             return
 
+        whitelist = set(self.config.clarity["magic_number_whitelist"])
+        threshold = self.config.clarity["magic_number_threshold"]
+
         magic_count = 0
         for i, line in enumerate(content.split("\n"), 1):
             stripped = line.strip()
             if stripped.startswith("#") or stripped.startswith("def ") or stripped.startswith("class "):
                 continue
-            # Numbers that aren't 0, 1, 2, or common defaults
+            # Numbers that aren't in the whitelist
             numbers = re.findall(r'(?<!["\w])(\d+\.?\d*)(?!["\w])', stripped)
             for n in numbers:
                 val = float(n)
-                if val not in (0, 1, 2, 100, 255) and not stripped.startswith(("import", "from", "#")):
+                if val not in whitelist and not stripped.startswith(("import", "from", "#")):
                     magic_count += 1
 
-        if magic_count > 10:
+        if magic_count > threshold:
             result.findings.append(self._make_finding(
                 file=filepath,
                 severity="low",
@@ -153,7 +157,7 @@ class ClarityAnalyzer(BaseAnalyzer):
                 max_depth = depth
                 deepest_line = i
 
-        if max_depth >= 5:
+        if max_depth >= self.config.clarity["nesting_threshold"]:
             result.findings.append(self._make_finding(
                 file=filepath,
                 severity="medium",

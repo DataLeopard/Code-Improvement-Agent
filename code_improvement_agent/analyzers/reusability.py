@@ -21,15 +21,18 @@ class ReusabilityAnalyzer(BaseAnalyzer):
         return result
 
     def _check_duplicate_blocks(self, result: AnalyzerResult):
-        """Find code blocks (3+ lines) that appear in multiple files."""
-        # Build a map of 3-line sliding windows across all files
+        """Find code blocks that appear in multiple files."""
+        block_size = self.config.reusability["block_size"]
+        min_block_length = self.config.reusability["min_block_length"]
+
+        # Build a map of N-line sliding windows across all files
         block_locations: dict[str, list[tuple[str, int]]] = {}
 
         for filepath, content in self.file_contents.items():
             lines = [l.strip() for l in content.split("\n") if l.strip() and not l.strip().startswith("#")]
-            for i in range(len(lines) - 2):
-                block = "\n".join(lines[i:i+3])
-                if len(block) < 30:  # skip trivial blocks
+            for i in range(len(lines) - (block_size - 1)):
+                block = "\n".join(lines[i:i+block_size])
+                if len(block) < min_block_length:  # skip trivial blocks
                     continue
                 if block not in block_locations:
                     block_locations[block] = []
@@ -44,7 +47,7 @@ class ReusabilityAnalyzer(BaseAnalyzer):
                     file=files_str,
                     severity="medium",
                     title="Duplicated code block",
-                    description=f"A 3-line block appears in {len(unique_files)} files.",
+                    description=f"A {block_size}-line block appears in {len(unique_files)} files.",
                     suggestion="Extract into a shared utility function.",
                     code_before=block,
                 ))
@@ -65,9 +68,10 @@ class ReusabilityAnalyzer(BaseAnalyzer):
                     import_sets[key] = []
                 import_sets[key].append(filepath)
 
-        # Check for common import patterns (same set in 3+ files)
+        # Check for common import patterns (same set in N+ files)
+        import_threshold = self.config.reusability["import_repetition_threshold"]
         for import_block, files in import_sets.items():
-            if len(files) >= 3:
+            if len(files) >= import_threshold:
                 result.findings.append(self._make_finding(
                     file=", ".join(files),
                     severity="low",

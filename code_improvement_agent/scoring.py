@@ -15,8 +15,14 @@ class RepoScore:
     recommendation: str = ""  # archive, maintain, promote
 
 
-def compute_repo_score(analyzer_results: list) -> RepoScore:
+def compute_repo_score(analyzer_results: list, config=None) -> RepoScore:
     """Compute aggregate scores from individual analyzer results."""
+    if config is None:
+        from .config import load_config
+        config = load_config()
+
+    weights = config.scoring["weights"]
+
     scores_by_category = {}
     for r in analyzer_results:
         scores_by_category[r.analyzer_name.lower()] = r.score
@@ -35,12 +41,12 @@ def compute_repo_score(analyzer_results: list) -> RepoScore:
         (scores_by_category.get("automation", 10) + score.quality) / 2, 1
     )
 
-    # Weighted overall: quality 30%, structure 25%, security 25%, usefulness 20%
+    # Weighted overall from config
     score.overall = round(
-        score.quality * 0.30 +
-        score.structure * 0.25 +
-        score.security * 0.25 +
-        score.usefulness * 0.20,
+        score.quality * weights["quality"] +
+        score.structure * weights["structure"] +
+        score.security * weights["security"] +
+        score.usefulness * weights["usefulness"],
         1
     )
 

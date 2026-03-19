@@ -32,9 +32,13 @@ class BaseAnalyzer:
     name: str = "base"
     category: str = "general"
 
-    def __init__(self, repo_path: str, file_contents: dict[str, str]):
+    def __init__(self, repo_path: str, file_contents: dict[str, str], config=None):
         self.repo_path = repo_path
         self.file_contents = file_contents  # {relative_path: content}
+        if config is None:
+            from ..config import load_config
+            config = load_config(repo_path)
+        self.config = config
 
     def analyze(self) -> AnalyzerResult:
         raise NotImplementedError

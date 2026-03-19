@@ -63,6 +63,11 @@ def main():
         action="store_true",
         help="Estimate API cost before running smart mode (does not run analysis)",
     )
+    parser.add_argument(
+        "--config",
+        dest="config_path",
+        help="Path to .code-improve.yaml config file (default: auto-detect)",
+    )
 
     args = parser.parse_args()
 
@@ -102,6 +107,7 @@ def main():
         smart=args.smart,
         auto_fix=args.auto_fix,
         apply_fixes=args.apply,
+        config_path=args.config_path,
     )
 
     if isinstance(report, str) and report.startswith("ERROR"):

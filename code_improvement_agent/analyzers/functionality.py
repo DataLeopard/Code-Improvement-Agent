@@ -25,8 +25,9 @@ class FunctionalityAnalyzer(BaseAnalyzer):
     def _check_todos_fixmes(self, filepath: str, content: str, result: AnalyzerResult):
         """Find TODO, FIXME, HACK, XXX comments — indicators of incomplete work."""
         markers = []
+        todo_markers = self.config.functionality["todo_markers"]
         for i, line in enumerate(content.split("\n"), 1):
-            for marker in ("TODO", "FIXME", "HACK", "XXX", "BUG"):
+            for marker in todo_markers:
                 if marker in line.upper() and "#" in line:
                     markers.append((marker, i, line.strip()))
 
