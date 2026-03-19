@@ -121,11 +121,14 @@ def deep_review(file_contents: dict[str, str]) -> AnalyzerResult:
     for filepath, content in sorted(file_contents.items()):
         if filepath.endswith((".json", ".lock", ".css", ".md", ".txt", ".log")):
             continue
-        # Take first 2000 chars of each code file
-        snippet = content[:2000]
+        # Send full file up to 6000 chars, then truncate with note
+        if len(content) > 6000:
+            snippet = content[:6000] + f"\n# ... [{len(content) - 6000} more chars, file continues] ..."
+        else:
+            snippet = content
         total_chars += len(snippet)
-        if total_chars > 40000:  # stay within reasonable token limits
-            file_summaries.append(f"\n--- {filepath} (truncated, {len(content)} chars total) ---")
+        if total_chars > 80000:  # stay within reasonable token limits
+            file_summaries.append(f"\n--- {filepath} (skipped, {len(content)} chars) ---")
             break
         file_summaries.append(f"\n--- {filepath} ---\n{snippet}")
 
@@ -157,6 +160,7 @@ Respond with a JSON array. Each element:
 }}
 
 Only report REAL issues. No style nits. No suggestions to add comments.
+Do NOT report "incomplete" or "truncated" code — files may be snippets for context, the full code exists.
 Respond with ONLY the JSON array."""
 
     try:
