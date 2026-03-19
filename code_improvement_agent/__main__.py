@@ -104,6 +104,18 @@ def main():
         help="Path to .code-improve.yaml config file (default: auto-detect)",
     )
 
+    # Level 3: Action mode
+    parser.add_argument(
+        "--gen-tests",
+        action="store_true",
+        help="Generate pytest tests for public functions (requires Claude API)",
+    )
+    parser.add_argument(
+        "--write-tests",
+        action="store_true",
+        help="Write generated tests to tests/ directory (use with --gen-tests)",
+    )
+
     args = parser.parse_args()
 
     repo = Path(args.repo_path).resolve()
@@ -111,8 +123,8 @@ def main():
         print(f"Error: '{args.repo_path}' is not a directory.", file=sys.stderr)
         sys.exit(1)
 
-    # Set up logging for smart mode
-    if args.smart or args.auto_fix:
+    # Set up logging for API modes
+    if args.smart or args.auto_fix or args.gen_tests:
         logging.basicConfig(
             level=logging.INFO,
             format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
@@ -134,6 +146,8 @@ def main():
         auto_fix=args.auto_fix,
         apply_fixes=args.apply,
         config_path=args.config_path,
+        gen_tests=args.gen_tests,
+        write_tests=args.write_tests,
     )
 
     if isinstance(report, str) and report.startswith("ERROR"):
