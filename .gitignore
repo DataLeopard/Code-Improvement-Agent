@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+*.pyo
+.env
+venv/
+env/
+*.egg-info/
+dist/
+build/
+.vscode/
+.idea/
+sample_report.md
+sample_report.json
