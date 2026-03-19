@@ -14,7 +14,7 @@ try:
     for parent in [Path.cwd()] + list(Path(__file__).resolve().parents):
         env_path = parent / ".env"
         if env_path.exists():
-            load_dotenv(env_path)
+            load_dotenv(env_path, override=True)
             break
 except ImportError:
     pass

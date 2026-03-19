@@ -1,5 +1,6 @@
 """Base analyzer interface — all analyzers inherit from this."""
 
+from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 
 
@@ -26,7 +27,7 @@ class AnalyzerResult:
     notes: list[str] = field(default_factory=list)
 
 
-class BaseAnalyzer:
+class BaseAnalyzer(ABC):
     """Base class for all code analyzers."""
 
     name: str = "base"
@@ -40,8 +41,9 @@ class BaseAnalyzer:
             config = load_config(repo_path)
         self.config = config
 
+    @abstractmethod
     def analyze(self) -> AnalyzerResult:
-        raise NotImplementedError
+        ...
 
     def _make_finding(self, file: str, severity: str, title: str,
                       description: str, suggestion: str, **kwargs) -> Finding:

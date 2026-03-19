@@ -15,6 +15,41 @@ if sys.platform == "win32":
 from .agent import run_analysis
 
 
+def _print_cost_estimate(repo, auto_fix):
+    """Estimate and print API cost for smart/auto-fix mode."""
+    from .agent import collect_files
+    from .llm import estimate_cost
+    file_contents = collect_files(str(repo))
+    mode = "auto-fix" if auto_fix else "smart"
+    est = estimate_cost(file_contents, mode)
+    print(f"Estimated cost for --{mode} mode:", file=sys.stderr)
+    print(f"  Files:         {est['file_count']}", file=sys.stderr)
+    print(f"  Input tokens:  ~{est['input_tokens']:,}", file=sys.stderr)
+    print(f"  Output tokens: ~{est['output_tokens']:,}", file=sys.stderr)
+    print(f"  Est. cost:     ${est['estimated_cost_usd']:.4f}", file=sys.stderr)
+
+
+def _write_output(report, metadata, output_path, json_output, quiet):
+    """Write the report and optional JSON metadata to file or stdout."""
+    if output_path:
+        path = Path(output_path)
+        path.write_text(report, encoding="utf-8")
+        if not quiet:
+            print(f"Report written to: {path}", file=sys.stderr)
+
+        if json_output:
+            json_path = path.with_suffix(".json")
+            json_path.write_text(json.dumps(metadata, indent=2), encoding="utf-8")
+            if not quiet:
+                print(f"Metadata written to: {json_path}", file=sys.stderr)
+    else:
+        print(report)
+
+        if json_output:
+            print("\n---\n## Metadata (JSON)\n")
+            print(json.dumps(metadata, indent=2))
+
+
 def main():
     parser = argparse.ArgumentParser(
         prog="code-improvement-agent",
@@ -86,16 +121,7 @@ def main():
 
     # Cost estimation mode
     if args.cost:
-        from .agent import collect_files
-        from .llm import estimate_cost
-        file_contents = collect_files(str(repo))
-        mode = "auto-fix" if args.auto_fix else "smart"
-        est = estimate_cost(file_contents, mode)
-        print(f"Estimated cost for --{mode} mode:", file=sys.stderr)
-        print(f"  Files:         {est['file_count']}", file=sys.stderr)
-        print(f"  Input tokens:  ~{est['input_tokens']:,}", file=sys.stderr)
-        print(f"  Output tokens: ~{est['output_tokens']:,}", file=sys.stderr)
-        print(f"  Est. cost:     ${est['estimated_cost_usd']:.4f}", file=sys.stderr)
+        _print_cost_estimate(repo, args.auto_fix)
         sys.exit(0)
 
     if not args.quiet:
@@ -114,23 +140,7 @@ def main():
         print(report, file=sys.stderr)
         sys.exit(1)
 
-    if args.output:
-        output_path = Path(args.output)
-        output_path.write_text(report, encoding="utf-8")
-        if not args.quiet:
-            print(f"Report written to: {output_path}", file=sys.stderr)
-
-        if args.json_output:
-            json_path = output_path.with_suffix(".json")
-            json_path.write_text(json.dumps(metadata, indent=2), encoding="utf-8")
-            if not args.quiet:
-                print(f"Metadata written to: {json_path}", file=sys.stderr)
-    else:
-        print(report)
-
-        if args.json_output:
-            print("\n---\n## Metadata (JSON)\n")
-            print(json.dumps(metadata, indent=2))
+    _write_output(report, metadata, args.output, args.json_output, args.quiet)
 
     if not args.quiet:
         overall = metadata.get("scores", {}).get("overall", "?")

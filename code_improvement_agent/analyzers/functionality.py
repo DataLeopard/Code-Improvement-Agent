@@ -42,45 +42,56 @@ class FunctionalityAnalyzer(BaseAnalyzer):
                     line=line_num,
                 ))
 
+    @staticmethod
+    def _extract_body_lines(lines, start_index):
+        """Extract up to 2 non-empty, non-docstring, non-comment body lines after a def."""
+        body_lines = []
+        in_docstring = False
+        for j in range(start_index + 1, min(start_index + 10, len(lines))):
+            stripped = lines[j].strip()
+            if stripped.startswith('"""') or stripped.startswith("'''"):
+                if in_docstring:
+                    in_docstring = False
+                    continue
+                if stripped.count('"""') == 2 or stripped.count("'''") == 2:
+                    continue  # single-line docstring
+                in_docstring = True
+                continue
+            if in_docstring:
+                continue
+            if stripped and not stripped.startswith("#"):
+                body_lines.append(stripped)
+            if len(body_lines) >= 2:
+                break
+        return body_lines
+
     def _check_empty_functions(self, filepath: str, content: str, result: AnalyzerResult):
         """Find functions with only pass or ... as body."""
         lines = content.split("\n")
         for i, line in enumerate(lines):
             match = re.match(r'\s*def (\w+)', line)
-            if match:
-                func_name = match.group(1)
-                # Look at next non-empty, non-docstring lines
-                body_lines = []
-                in_docstring = False
-                for j in range(i + 1, min(i + 10, len(lines))):
-                    stripped = lines[j].strip()
-                    if stripped.startswith('"""') or stripped.startswith("'''"):
-                        if in_docstring:
-                            in_docstring = False
-                            continue
-                        if stripped.count('"""') == 2 or stripped.count("'''") == 2:
-                            continue  # single-line docstring
-                        in_docstring = True
-                        continue
-                    if in_docstring:
-                        continue
-                    if stripped and not stripped.startswith("#"):
-                        body_lines.append(stripped)
-                    if len(body_lines) >= 2:
-                        break
+            if not match:
+                continue
 
-                if body_lines and body_lines[0] in ("pass", "...", "raise NotImplementedError"):
-                    if len(body_lines) == 1 or (len(body_lines) > 1 and
-                            not body_lines[1].startswith(("def ", "class "))):
-                        continue  # might have more body
-                    result.findings.append(self._make_finding(
-                        file=filepath,
-                        severity="medium",
-                        title=f"Stub function: {func_name}()",
-                        description=f"Line {i+1}: function body is just '{body_lines[0]}'.",
-                        suggestion="Implement the function or remove it if unnecessary.",
-                        line=i + 1,
-                    ))
+            func_name = match.group(1)
+            body_lines = self._extract_body_lines(lines, i)
+
+            if not body_lines:
+                continue
+            if body_lines[0] not in ("pass", "...", "raise NotImplementedError"):
+                continue
+            if len(body_lines) == 1 or (len(body_lines) > 1 and
+                    not body_lines[1].startswith(("def ", "class "))):
+                continue  # might have more body
+
+            result.findings.append(self._make_finding(
+                file=filepath,
+                severity="medium",
+                title=f"Stub function: {func_name}()",
+                description=f"Line {i+1}: function body is just '{body_lines[0]}'.",
+                suggestion="Implement the function or remove it if unnecessary.",
+                line=i + 1,
+            ))
 
     def _check_bare_excepts(self, filepath: str, content: str, result: AnalyzerResult):
         """Find bare except clauses that swallow all errors."""

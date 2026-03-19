@@ -33,28 +33,31 @@ class ASTAnalyzer(BaseAnalyzer):
     # ------------------------------------------------------------------
     # 1. Unused imports
     # ------------------------------------------------------------------
+    @staticmethod
+    def _find_type_checking_ranges(tree: ast.Module) -> list[tuple[int, int]]:
+        """Find line ranges of TYPE_CHECKING blocks."""
+        ranges = []
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.If):
+                continue
+            test = node.test
+            is_tc = (isinstance(test, ast.Name) and test.id == "TYPE_CHECKING") or \
+                    (isinstance(test, ast.Attribute) and test.attr == "TYPE_CHECKING")
+            if not is_tc:
+                continue
+            end = max(
+                getattr(n, "lineno", node.lineno)
+                for n in ast.walk(node)
+            )
+            ranges.append((node.lineno, end))
+        return ranges
+
     def _check_unused_imports(self, filepath: str, content: str,
                               tree: ast.Module, result: AnalyzerResult):
         """Find imported names that are never referenced in the rest of the AST."""
         # Collect all imported names: {local_name: line_number}
         imported: dict[str, int] = {}
-        type_checking_ranges: list[tuple[int, int]] = []
-
-        # Find TYPE_CHECKING blocks to skip
-        for node in ast.walk(tree):
-            if isinstance(node, ast.If):
-                test = node.test
-                is_tc = False
-                if isinstance(test, ast.Name) and test.id == "TYPE_CHECKING":
-                    is_tc = True
-                elif isinstance(test, ast.Attribute) and test.attr == "TYPE_CHECKING":
-                    is_tc = True
-                if is_tc:
-                    end = max(
-                        getattr(n, "lineno", node.lineno)
-                        for n in ast.walk(node)
-                    )
-                    type_checking_ranges.append((node.lineno, end))
+        type_checking_ranges = self._find_type_checking_ranges(tree)
 
         def _in_type_checking(lineno: int) -> bool:
             return any(lo <= lineno <= hi for lo, hi in type_checking_ranges)
