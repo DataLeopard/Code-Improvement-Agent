@@ -4,9 +4,13 @@ build-backend = "setuptools.backends._legacy:_Backend"
 
 [project]
 name = "code-improvement-agent"
-version = "1.0.0"
-description = "Systematic repository analysis and improvement agent"
+version = "2.0.0"
+description = "Systematic repository analysis and improvement agent with AI-powered smart review"
 requires-python = ">=3.10"
+dependencies = []
+
+[project.optional-dependencies]
+smart = ["anthropic>=0.80.0", "python-dotenv>=1.0.0"]
 
 [project.scripts]
 code-improve = "code_improvement_agent.__main__:main"
